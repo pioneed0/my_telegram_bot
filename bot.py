@@ -1,57 +1,63 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from datetime import datetime, timedelta
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import datetime
 import asyncio
 
-# 🔹 توکن ربات خودت رو اینجا بذار
+# 🔹 توکن رباتت رو اینجا وارد کن
 TOKEN = "8062630296:AAFB663zNESmwAYHR9s25nBt8nqio52SBfg"
 
-# حافظه موقتی برای ذخیره یادداشت‌ها
-notes = []
-user_id = None  # بعداً ذخیره می‌کنیم تا بتونیم پیام بفرستیم
+# 🔹 فایل ذخیره‌سازی داده‌ها (اختیاری)
+DATA_FILE = "data.txt"
 
-# ✅ دستور start
+# ------------------------ دستورات ربات ------------------------
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_id
-    user_id = update.message.chat_id
-    await update.message.reply_text("سلام پیشرو 👋\nمن ربات یادآور مطالعه‌ات هستم!\nبا دستور /add یه موضوع جدید اضافه کن تا مرورش رو یادآوری کنم.")
-
-# ✅ دستور add
-async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("مثلاً بنویس:\n`/add فصل ۲ فیزیولوژی`", parse_mode="Markdown")
-        return
-
-    title = " ".join(context.args)
-    now = datetime.now()
-    reminder_times = [now + timedelta(minutes=m) for m in [1, 3, 5, 10]]
-    notes.append({"title": title, "times": reminder_times})
-
     await update.message.reply_text(
-        f"✅ موضوع '{title}' ثبت شد.\n⏰ زمان‌های یادآوری در {', '.join([t.strftime('%H:%M:%S') for t in reminder_times])}"
+        "سلام! 🌞\nمن ربات یادآور مطالعه‌ات هستم.\n"
+        "می‌تونی با دستور /add عنوان مطالعه‌ات رو بنویسی."
     )
 
-# ✅ بررسی زمان یادآوری‌ها
-async def check_reminders(app):
-    while True:
-        now = datetime.now()
-        for note in notes:
-            for t in note["times"]:
-                if abs((now - t).total_seconds()) < 5:  # اختلاف کمتر از ۵ ثانیه
-                    if user_id:
-                        await app.bot.send_message(chat_id=user_id, text=f"📚 زمان مرور موضوع: {note['title']}")
-                        note["times"].remove(t)
-        await asyncio.sleep(5)
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("لطفاً عنوان مطالعه‌ات رو هم بنویس. مثال:\n`/add فیزیک فصل ۲`")
+        return
 
-# ✅ راه‌اندازی ربات
-async def main():
+    topic = " ".join(context.args)
+    now = datetime.datetime.now()
+    with open(DATA_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{topic}|{now}\n")
+
+    await update.message.reply_text(f"✅ موضوع '{topic}' ثبت شد در {now.strftime('%H:%M:%S')}.\n"
+                                    f"من در بازه‌های خاص یادآور مرورش می‌شم 🔁")
+
+async def list_topics(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        if not lines:
+            await update.message.reply_text("📭 هنوز موضوعی ثبت نکردی.")
+            return
+
+        msg = "🗒️ لیست موضوعات ثبت‌شده:\n"
+        for line in lines:
+            topic, time = line.strip().split("|")
+            msg += f"• {topic} — {time}\n"
+
+        await update.message.reply_text(msg)
+    except FileNotFoundError:
+        await update.message.reply_text("هنوز فایلی برای داده‌ها ایجاد نشده 😅")
+
+# ------------------------ بخش راه‌اندازی ------------------------
+
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("list", list_topics))
 
-    asyncio.create_task(check_reminders(app))
     print("✅ ربات در حال اجراست...")
-    await app.run_polling()
+    app.run_polling(close_loop=False)  # ✅ اصلاح‌شده برای Render
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
