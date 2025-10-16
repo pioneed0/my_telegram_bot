@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import asyncio
 
 # 🔹 توکن ربات خودت رو اینجا بذار
-TOKEN = "اینجا_توکن_ربات_تو_قرار_بده"
+TOKEN = "8062630296:AAFB663zNESmwAYHR9s25nBt8nqio52SBfg"
 
 # حافظه موقتی برای ذخیره یادداشت‌ها
 notes = []
